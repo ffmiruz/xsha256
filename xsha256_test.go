@@ -7,7 +7,7 @@ import (
 )
 
 func Test_Addmod32(t *testing.T) {
-	if AddMod32(1, 2) != 4 {
+	if AddMod32(1, 2) != 3 {
 		t.Error("AddMod32 case 1 error")
 	}
 	if AddMod32(4294967295, 1) != 0 {
@@ -151,5 +151,97 @@ func Test_Hash(t *testing.T) {
 	hash = Hash([]byte("John Jacob Jingleheimer Schmidt! His name is my name too. Whenever we go out the people always shout there goes John Jacob Jingleheimer Schmidt! Nanananananana..."))
 	if string(hash) != "68b74d91364475247c10bfee2621eaa13bcabb033ed1dee58b74c05e7944489a" {
 		t.Error("Padding case 5 error")
+	}
+}
+
+// Length Extension Attack
+//
+// Some SHA-256 outputs are related to each other, that can be detected or exploited
+// even when the input is unknown.
+// SHA-256 hash is just a state input if there had been more input.
+//
+// We can compute the hash of input with added suffix from current
+// hash of the input, without knowing the input.
+// The limitation is the padding of current hash must be part of added suffix.
+
+// The return value extended is hex encoded input+padding+suffix.
+func LengthExtend(input, suffix []byte) []byte {
+	pad := Padding(uint64(len(input)))
+	paddedInput := append(input, pad...)
+	extended := make([]byte, 2*(len(paddedInput)+len(suffix)))
+	suffixed := append(paddedInput, suffix...)
+	hex.Encode(extended, suffixed)
+	return extended
+}
+
+func Test_LengthExtend(t *testing.T) {
+	input := "fox elephant dog"
+	suffix := "pig jaguar iguana"
+	extended := LengthExtend([]byte(input), []byte(suffix))
+	expected := "666f7820656c657068616e7420646f67800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080706967206a616775617220696775616e61"
+	if !reflect.DeepEqual([]byte(expected), extended) {
+		t.Error("fail to LengthExtend")
+	}
+}
+
+// Get current State from given hash
+func RecoverState(hash []byte) State {
+	state := State{}
+	dst := make([]byte, 4)
+	for i := 0; i < 64; i += 8 {
+		hex.Decode(dst, hash[i:i+8])
+		// 4 bytes into uint32
+		state.list[i/8] = uint32(dst[0])<<24 | uint32(dst[1])<<16 | uint32(dst[2])<<8 | uint32(dst[3])
+	}
+	return state
+}
+
+func Test_RecoverState(t *testing.T) {
+	expected := [8]uint32{
+		3133871534, 4165468858, 2700423300, 1343465870,
+		3790528102, 1267814286, 3156890126, 1761909257,
+	}
+	hash := "bacb15aef84802baa0f530845013a98ee1eede664b914f8ebc2a520e69049a09"
+	state := RecoverState([]byte(hash))
+	if !reflect.DeepEqual(expected, state.list) {
+		t.Error("fail to RecoverState")
+	}
+}
+
+// Get state from current hash. Create new block from padded suffix.
+// Mix the block using the obtained state and block.
+func LEA(oriHash, suffix []byte, oriLen uint64) []byte {
+	state := RecoverState(oriHash)
+	newLen := oriLen + uint64(len(Padding(oriLen))) + uint64(len(suffix))
+	pad := Padding(newLen)
+	paddedMsg := append(suffix, pad...)
+
+	// all below are from Hash() function.
+	for i := 0; i < len(paddedMsg); i += 64 {
+		block := paddedMsg[i : i+64]
+		Compress(&state, block)
+	}
+	byteHash := make([]byte, 0, 64)
+	v := [4]byte{}
+	for i := 0; i < 8; i++ {
+		// uint32 to array of bytes
+		v[0] = byte(state.list[i] >> 24)
+		v[1] = byte(state.list[i] >> 16)
+		v[2] = byte(state.list[i] >> 8)
+		v[3] = byte(state.list[i])
+		byteHash = append(byteHash, v[:]...)
+	}
+	hash := make([]byte, 64)
+	hex.Encode(hash, byteHash)
+	return hash
+}
+
+func Test_LEA(t *testing.T) {
+	inputHash := []byte("27b82abe296f3ecd5174b6e6168ea683cd8ef94306d9abd9f81807f2fa587d2a")
+	inputLen := uint64(41)
+	suffix := []byte("manatee jaguar zebra zebra dog")
+	newHash := LEA(inputHash, suffix, inputLen)
+	if string(newHash) != "50417b93404facb1b481990a7bf6ac963b1e1ee0ccced8b2a5938caa28b52b41" {
+		t.Error("Padding case 1 error")
 	}
 }
