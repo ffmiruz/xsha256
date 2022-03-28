@@ -209,6 +209,10 @@ var IV = [8]uint32{
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 }
 
+// msg is padded. padded msg is chunked into 64 bytes block.
+// block is mixed(Compress) with current state.
+// The resulting state is used as state for next block mixing.
+// Return hex encoded bytes of state.
 func Hash(msg []byte) []byte {
 	pad := Padding(uint64(len(msg)))
 	paddedMsg := append(msg, pad...)

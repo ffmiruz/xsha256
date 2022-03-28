@@ -1,2 +1,5 @@
 # xsha256
-SHA-256 implementation piece by piece (for learning)
+SHA-256 implementation
+
+#### References
+https://en.wikipedia.org/wiki/SHA-2#Pseudocode
