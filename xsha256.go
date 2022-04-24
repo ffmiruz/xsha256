@@ -222,7 +222,7 @@ func Hash(msg []byte) []byte {
 		block := paddedMsg[i : i+64]
 		Compress(state, block)
 	}
-	byteHash := make([]byte, 0, 64)
+	byteHash := make([]byte, 0, 32)
 	v := [4]byte{}
 	for i := 0; i < 8; i++ {
 		// uint32 to array of bytes
