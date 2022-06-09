@@ -36,7 +36,7 @@ func BytesToWords(b []byte) []uint32 {
 		words[i] = uint32(b[i*4+0])<<24 | uint32(b[i*4+1])<<16 | uint32(b[i*4+2])<<8 | uint32(b[i*4+3])
 	}
 	for i := 16; i < 64; i++ {
-		words[i] = AddMod32(AddMod32(AddMod32(Little_Sigma1(words[i-2]), words[i-7]), Little_Sigma0(words[i-15])), words[i-16])
+		words[i] = words[i-16] + Little_Sigma0(words[i-15]) + words[i-7] + Little_Sigma1(words[i-2])
 	}
 	return words
 }
@@ -68,18 +68,18 @@ type State struct {
 // https://en.wikipedia.org/wiki/SHA-2#Pseudocode
 func Round(state *State, roundK uint32, word uint32) {
 	ch := Choice(state.list[4], state.list[5], state.list[6])
-	temp1 := AddMod32(AddMod32(AddMod32(AddMod32(roundK, word), ch), Big_Sigma1(state.list[4])), state.list[7])
+	temp1 := state.list[7] + Big_Sigma1(state.list[4]) + ch + roundK + word
 	maj := Majority(state.list[0], state.list[1], state.list[2])
-	temp2 := AddMod32(Big_Sigma0(state.list[0]), maj)
+	temp2 := Big_Sigma0(state.list[0]) + maj
 
 	state.list[7] = state.list[6]
 	state.list[6] = state.list[5]
 	state.list[5] = state.list[4]
-	state.list[4] = AddMod32(state.list[3], temp1)
+	state.list[4] = state.list[3] + temp1
 	state.list[3] = state.list[2]
 	state.list[2] = state.list[1]
 	state.list[1] = state.list[0]
-	state.list[0] = AddMod32(temp1, temp2)
+	state.list[0] = temp1 + temp2
 }
 
 // NOTE: cube roots of the first 64 prime numbers.
@@ -153,19 +153,21 @@ var ROUND_CONSTANT = []uint32{
 // The mixing loop.
 func Compress(state *State, block []byte) {
 	words := BytesToWords(block)
-	clone := State{list: state.list}
+	before := State{list: state.list}
 
 	for i := 0; i < 64; i++ {
 		Round(state, ROUND_CONSTANT[i], words[i])
 	}
-	state.list[0] = AddMod32(state.list[0], clone.list[0])
-	state.list[1] = AddMod32(state.list[1], clone.list[1])
-	state.list[2] = AddMod32(state.list[2], clone.list[2])
-	state.list[3] = AddMod32(state.list[3], clone.list[3])
-	state.list[4] = AddMod32(state.list[4], clone.list[4])
-	state.list[5] = AddMod32(state.list[5], clone.list[5])
-	state.list[6] = AddMod32(state.list[6], clone.list[6])
-	state.list[7] = AddMod32(state.list[7], clone.list[7])
+
+	// Add the compressed chunk to the current hash value.
+	state.list[0] = state.list[0] + before.list[0]
+	state.list[1] = state.list[1] + before.list[1]
+	state.list[2] = state.list[2] + before.list[2]
+	state.list[3] = state.list[3] + before.list[3]
+	state.list[4] = state.list[4] + before.list[4]
+	state.list[5] = state.list[5] + before.list[5]
+	state.list[6] = state.list[6] + before.list[6]
+	state.list[7] = state.list[7] + before.list[7]
 }
 
 // Padding scheme:
