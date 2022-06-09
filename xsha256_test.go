@@ -133,23 +133,23 @@ func Test_Padding(t *testing.T) {
 
 func Test_Hash(t *testing.T) {
 	hash := Hash([]byte(""))
-	if string(hash) != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
+	if hex.EncodeToString(hash) != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
 		t.Error("Padding case 1 error")
 	}
 	hash = Hash([]byte("hello world"))
-	if string(hash) != "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9" {
+	if hex.EncodeToString(hash) != "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9" {
 		t.Error("Padding case 2 error")
 	}
 	hash = Hash([]byte("aardvark zebra yak pig jaguar aardvark rhinoceros butte"))
-	if string(hash) != "4b45e1bec21185865d1628a8a502eed789193a3c253a529983e4bc17fa65f32b" {
+	if hex.EncodeToString(hash) != "4b45e1bec21185865d1628a8a502eed789193a3c253a529983e4bc17fa65f32b" {
 		t.Error("Padding case 3 error")
 	}
 	hash = Hash([]byte("narwhal dog llama llama giraffe narwhal octopus dog xeno"))
-	if string(hash) != "99069f1eba4c874aba649c17136a253e1dd504cda936ab77cf189c2cf9eb88ff" {
+	if hex.EncodeToString(hash) != "99069f1eba4c874aba649c17136a253e1dd504cda936ab77cf189c2cf9eb88ff" {
 		t.Error("Padding case 4 error")
 	}
 	hash = Hash([]byte("John Jacob Jingleheimer Schmidt! His name is my name too. Whenever we go out the people always shout there goes John Jacob Jingleheimer Schmidt! Nanananananana..."))
-	if string(hash) != "68b74d91364475247c10bfee2621eaa13bcabb033ed1dee58b74c05e7944489a" {
+	if hex.EncodeToString(hash) != "68b74d91364475247c10bfee2621eaa13bcabb033ed1dee58b74c05e7944489a" {
 		t.Error("Padding case 5 error")
 	}
 }
@@ -245,3 +245,6 @@ func Test_LEA(t *testing.T) {
 		t.Error("Padding case 1 error")
 	}
 }
+
+// hash := make([]byte, 64)
+// 	hex.Encode(hash, byteHash)

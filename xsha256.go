@@ -1,9 +1,5 @@
 package xsha256
 
-import (
-	"encoding/hex"
-)
-
 // Add modulo 2^32
 func AddMod32(a, b uint32) uint32 {
 	return (a + b) & 0xFFFFFFFF
@@ -214,7 +210,6 @@ var IV = [8]uint32{
 // msg is padded. padded msg is chunked into 64 bytes block.
 // block is mixed(Compress) with current state.
 // The resulting state is used as state for next block mixing.
-// Return hex encoded bytes of state.
 func Hash(msg []byte) []byte {
 	pad := Padding(uint64(len(msg)))
 	paddedMsg := append(msg, pad...)
@@ -224,7 +219,7 @@ func Hash(msg []byte) []byte {
 		block := paddedMsg[i : i+64]
 		Compress(state, block)
 	}
-	byteHash := make([]byte, 0, 32)
+	hash := make([]byte, 0, 32)
 	v := [4]byte{}
 	for i := 0; i < 8; i++ {
 		// uint32 to array of bytes
@@ -232,9 +227,8 @@ func Hash(msg []byte) []byte {
 		v[1] = byte(state.list[i] >> 16)
 		v[2] = byte(state.list[i] >> 8)
 		v[3] = byte(state.list[i])
-		byteHash = append(byteHash, v[:]...)
+
+		hash = append(hash, v[:]...)
 	}
-	hash := make([]byte, 64)
-	hex.Encode(hash, byteHash)
 	return hash
 }
