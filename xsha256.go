@@ -1,21 +1,21 @@
 package xsha256
 
 // Add modulo 2^32
-func AddMod32(a, b uint32) uint32 {
+func addMod32(a, b uint32) uint32 {
 	return (a + b) & 0xFFFFFFFF
 }
 
 // Right rotate
-func RotR32(a uint32, shift uint32) uint32 {
+func rotR32(a uint32, shift uint32) uint32 {
 	return (a >> shift) | (a << (32 - shift))
 }
 
-func Little_Sigma0(x uint32) uint32 {
-	return RotR32(x, 7) ^ RotR32(x, 18) ^ (x >> 3)
+func little_Sigma0(x uint32) uint32 {
+	return rotR32(x, 7) ^ rotR32(x, 18) ^ (x >> 3)
 }
 
-func Little_Sigma1(x uint32) uint32 {
-	return RotR32(x, 17) ^ RotR32(x, 19) ^ (x >> 10)
+func little_Sigma1(x uint32) uint32 {
+	return rotR32(x, 17) ^ rotR32(x, 19) ^ (x >> 10)
 }
 
 // SHA-256 message block is 64 bytes. So one message block contains 16 words.
@@ -25,35 +25,35 @@ func Little_Sigma1(x uint32) uint32 {
 // Convert 64 bytes into 16 words. Convert in 4 bytes group into integer using big endian.
 // For next 48 words using formula:
 // 	words[i] := words[i-16] + little_sigma0(words[i-15]) + words[i-7] + little_sigma1(words[i-2])
-func BytesToWords(b []byte) []uint32 {
+func bytesToWords(b []byte) []uint32 {
 	words := make([]uint32, 64)
 	for i := 0; i < 16; i++ {
 		// slice of bytes into uint32
 		words[i] = uint32(b[i*4+0])<<24 | uint32(b[i*4+1])<<16 | uint32(b[i*4+2])<<8 | uint32(b[i*4+3])
 	}
 	for i := 16; i < 64; i++ {
-		words[i] = words[i-16] + Little_Sigma0(words[i-15]) + words[i-7] + Little_Sigma1(words[i-2])
+		words[i] = words[i-16] + little_Sigma0(words[i-15]) + words[i-7] + little_Sigma1(words[i-2])
 	}
 	return words
 }
 
-func Big_Sigma0(x uint32) uint32 {
-	return RotR32(x, 2) ^ RotR32(x, 13) ^ RotR32(x, 22)
+func big_Sigma0(x uint32) uint32 {
+	return rotR32(x, 2) ^ rotR32(x, 13) ^ rotR32(x, 22)
 }
 
-func Big_Sigma1(x uint32) uint32 {
-	return RotR32(x, 6) ^ RotR32(x, 11) ^ RotR32(x, 25)
+func big_Sigma1(x uint32) uint32 {
+	return rotR32(x, 6) ^ rotR32(x, 11) ^ rotR32(x, 25)
 }
 
 // Each bit is according to the bit from y or z at this index,
 // depending on if the bit from x at this index is 1 or 0).
-func Choice(x, y, z uint32) uint32 {
+func choice(x, y, z uint32) uint32 {
 	return (x & y) ^ ((^x) & z)
 }
 
 // For each bit index, that result bit is according to the majority
 // of the 3 inputs bits for x y and z at this index.
-func Majority(x, y, z uint32) uint32 {
+func majority(x, y, z uint32) uint32 {
 	return (x & y) ^ (x & z) ^ (y & z)
 }
 
@@ -62,11 +62,11 @@ type State struct {
 }
 
 // https://en.wikipedia.org/wiki/SHA-2#Pseudocode
-func Round(state *State, roundK uint32, word uint32) {
-	ch := Choice(state.list[4], state.list[5], state.list[6])
-	temp1 := state.list[7] + Big_Sigma1(state.list[4]) + ch + roundK + word
-	maj := Majority(state.list[0], state.list[1], state.list[2])
-	temp2 := Big_Sigma0(state.list[0]) + maj
+func round(state *State, roundK uint32, word uint32) {
+	ch := choice(state.list[4], state.list[5], state.list[6])
+	temp1 := state.list[7] + big_Sigma1(state.list[4]) + ch + roundK + word
+	maj := majority(state.list[0], state.list[1], state.list[2])
+	temp2 := big_Sigma0(state.list[0]) + maj
 
 	state.list[7] = state.list[6]
 	state.list[6] = state.list[5]
@@ -79,7 +79,7 @@ func Round(state *State, roundK uint32, word uint32) {
 }
 
 // NOTE: cube roots of the first 64 prime numbers.
-var ROUND_CONSTANT = []uint32{
+var _ROUND_CONSTANT = []uint32{
 	0x428a2f98,
 	0x71374491,
 	0xb5c0fbcf,
@@ -147,12 +147,12 @@ var ROUND_CONSTANT = []uint32{
 }
 
 // The mixing loop.
-func Compress(state *State, block []byte) {
-	words := BytesToWords(block)
+func compress(state *State, block []byte) {
+	words := bytesToWords(block)
 	before := State{list: state.list}
 
 	for i := 0; i < 64; i++ {
-		Round(state, ROUND_CONSTANT[i], words[i])
+		round(state, _ROUND_CONSTANT[i], words[i])
 	}
 
 	// Add the compressed chunk to the current hash value.
@@ -180,7 +180,7 @@ func Compress(state *State, block []byte) {
 // Choose the number of 0x00 bytes for step 2 to be the smallest number
 // 	such that the total byte-length of the message plus the padding is an exact multiple of 64.
 
-func Padding(len uint64) []byte {
+func padding(len uint64) []byte {
 	remainder := (len + 8) % 64
 	filler := 64 - remainder
 	zero := filler - 1
@@ -202,22 +202,22 @@ func Padding(len uint64) []byte {
 }
 
 // Initialization vector
-var IV = [8]uint32{
+var _IV = [8]uint32{
 	0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 	0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 }
 
 // msg is padded. padded msg is chunked into 64 bytes block.
-// block is mixed(Compress) with current state.
+// block is mixed(compress) with current state.
 // The resulting state is used as state for next block mixing.
 func Hash(msg []byte) []byte {
-	pad := Padding(uint64(len(msg)))
+	pad := padding(uint64(len(msg)))
 	paddedMsg := append(msg, pad...)
-	state := &State{list: IV}
+	state := &State{list: _IV}
 
 	for i := 0; i < len(paddedMsg); i += 64 {
 		block := paddedMsg[i : i+64]
-		Compress(state, block)
+		compress(state, block)
 	}
 	hash := make([]byte, 0, 32)
 	v := [4]byte{}
